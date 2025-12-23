@@ -1,5 +1,56 @@
-.DS_Store
-.ipynb_checkpoints
-__pycache__
+# --- Python Safety ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# --- Jupyter Notebooks ---
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/
+
+# --- AWS & Security ---
 .env
+.aws/
+aws_credentials
+credentials.csv
+secrets.json
+*.pem
+
+# --- Data & Large Files ---
 *.csv
+*.txt
+*.zip
+*.tar.gz
+*.pkl
+*.h5
+NSL-KDD-Dataset-master/
+
+# Specific junk folders
+NSL-KDD-Dataset-master/
+data/
+datasets/
+
+# --- IDE & OS Junk ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
