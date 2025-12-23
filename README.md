@@ -7,7 +7,15 @@
 ![Latency](https://img.shields.io/badge/Latency-%3C100ms-orange)
 ![Python](https://img.shields.io/badge/Python-3.11-yellow)
 
-> A cloud-native intrusion detection system that identifies network attacks (DoS, Probe, R2L, U2R) in real-time using machine learning. Built as a portfolio project demonstrating Cloud Engineering and ML Operations.
+> My first cloud engineering + ML project! Built this over winter break to teach myself AWS and machine learning. It detects network attacks (DoS, Probe, R2L, U2R) in real-time using XGBoost on SageMaker.
+
+---
+
+## 🎬 What Is This?
+
+Traditional firewalls use static rules — they only catch attacks they already know about. SageWall uses **machine learning** to learn what "normal" network traffic looks like, so it can detect *new* attacks based on statistical anomalies.
+
+Think of it like this: instead of memorizing every burglar's face, you learn what normal foot traffic looks like and flag anything weird.
 
 ---
 
@@ -24,13 +32,20 @@
         └────────────────────────┴────────────────────────┴────────────────────────┘
                                          │
                               ┌──────────┴──────────┐
-                              │   CloudWatch Logs   │
-                              │   & Monitoring      │
+                              │   Streamlit UI      │
+                              │   + SNS Alerts      │
                               └─────────────────────┘
 ```
 
-<!-- TODO: Replace with actual architecture diagram -->
-<!-- ![Architecture Diagram](./images/architecture.png) -->
+---
+
+## ✨ Features
+
+- **Streamlit Web App** — Clean UI to paste packet data and get instant threat predictions
+- **Real-time Inference** — SageMaker endpoint responds in <100ms
+- **SNS Alerting** — Sends email/SMS when threat confidence exceeds 90%
+- **Fully Serverless** — No servers to manage; Lambda + SageMaker handle everything
+- **Literate Notebook** — The training notebook reads like a tutorial, not just code
 
 ---
 
@@ -38,8 +53,9 @@
 
 | Category | Technologies |
 |----------|-------------|
-| **Cloud** | AWS S3, Lambda, SageMaker, IAM, CloudWatch |
+| **Cloud** | AWS S3, Lambda, SageMaker, SNS, IAM, CloudWatch |
 | **ML/Data** | XGBoost, Pandas, NumPy |
+| **Frontend** | Streamlit |
 | **SDK** | Boto3, AWS Data Wrangler |
 | **Runtime** | Python 3.11 |
 
@@ -49,147 +65,133 @@
 
 ```
 SageWall/
+├── app.py                    # Streamlit frontend (the UI!)
+├── alerts.py                 # SNS alerting module
 ├── lambda_function.py        # ETL preprocessing pipeline
-├── SageWall_Training.ipynb   # Model training notebook
-├── KDDTrain+.txt             # Training dataset (125,973 records)
-├── NSL-KDD-Dataset-master/   # Full NSL-KDD dataset
-│   ├── KDDTrain+.txt
-│   ├── KDDTest+.txt
-│   └── ...
-└── images/                   # Documentation & logs
-    ├── 01 making raw bucket.png
-    ├── 04 first successful log, 506 mb.png
-    └── ...
+├── SageWall_Training.ipynb   # Literate programming notebook
+├── requirements.txt          # Python dependencies
+├── README.md                 # You're reading this!
+└── images/                   # Documentation screenshots
 ```
 
 ---
 
-## 🎯 Performance Metrics
+## 🎯 Performance
 
 | Metric | Value |
 |--------|-------|
-| **Accuracy** | 99.9% |
-| **Inference Latency** | <100ms |
-| **Dataset Size** | 125,000+ records |
-| **Attack Types Detected** | DoS, Probe, R2L, U2R |
+| **Accuracy** | 99.9% on validation set |
+| **Inference Latency** | <100ms per packet |
+| **Dataset** | NSL-KDD (125,000+ records) |
+| **Attack Types** | DoS, Probe, R2L, U2R |
 
----
-
-## 🔧 Key Engineering Challenges
-
-### Challenge 1: Memory Timeouts in Lambda
-
-**Problem:** Initial Lambda configuration (128MB default) caused out-of-memory errors when processing the NSL-KDD dataset with Pandas.
-
-**Solution:** Vertical scaling — increased Lambda memory allocation to **1024MB RAM**. This also proportionally increased CPU allocation, reducing preprocessing time.
+Sample output from the validation test:
 
 ```
-# CloudWatch Log (Before)
-REPORT Duration: TIMEOUT  Memory Size: 128 MB  Max Memory Used: 128 MB
-
-# CloudWatch Log (After) 
-REPORT Duration: 12847ms  Memory Size: 1024 MB  Max Memory Used: 506 MB ✓
+Packet #1: Real=ATTACK | AI Confidence=0.9999 -> ✅ CAUGHT
+Packet #2: Real=ATTACK | AI Confidence=0.9998 -> ✅ CAUGHT  
+Packet #3: Real=ATTACK | AI Confidence=0.9999 -> ✅ CAUGHT
+Packet #4: Real=Normal | AI Confidence=0.0003 -> ✅ CLEARED
+Packet #5: Real=ATTACK | AI Confidence=0.9998 -> ✅ CAUGHT
 ```
 
 ---
 
-### Challenge 2: Schema Mismatch — Boolean vs Numeric Types
+## 🔧 Challenges I Ran Into (and Fixed!)
 
-**Problem:** The `pd.get_dummies()` function outputs **Boolean** values (`True`/`False`) by default. SageMaker XGBoost strictly requires numeric types and crashed during training.
+### 1. Lambda Kept Timing Out
 
-**Solution:** Enforced explicit type conversion in the ETL pipeline:
+**What happened:** Default Lambda memory (128MB) wasn't enough to run Pandas on the dataset. It would just... die.
+
+**The fix:** Bumped memory to 1024MB. Turns out Lambda scales CPU proportionally with RAM, so this also made it way faster.
+
+```
+# Before: TIMEOUT at 128 MB
+# After:  12.8 seconds at 1024 MB, only used 506 MB ✓
+```
+
+### 2. XGBoost Hated My Data Types
+
+**What happened:** `pd.get_dummies()` outputs `True`/`False` by default. XGBoost only accepts numbers and would crash during training with a cryptic error.
+
+**The fix:** Force integer output and then cast everything to floats:
 
 ```python
-# Before (Broken)
-df = pd.get_dummies(df, columns=CATEGORICAL_COLUMNS)
-
-# After (Fixed)
 df = pd.get_dummies(df, columns=CATEGORICAL_COLUMNS, dtype=int)
-df = df.astype(float)  # Safety check for SageMaker compatibility
+df = df.astype(float)  # belt and suspenders
 ```
+
+### 3. boto3 Wouldn't Load on macOS
+
+**What happened:** Running `streamlit run app.py` locally on my Mac threw a weird permissions error when importing boto3 at startup.
+
+**The fix:** Moved the `import boto3` inside the function that actually needs it. Lazy loading FTW.
 
 ---
 
-## 🚀 How to Run
+## 🚀 Quick Start
 
 ### Prerequisites
-- AWS Account with appropriate IAM permissions
+- AWS Account with SageMaker access
 - Python 3.11
-- AWS CLI configured
+- AWS CLI configured (`aws configure`)
 
-### Deployment Steps
+### Run the Streamlit App
 
-1. **Deploy the Lambda Function**
-   ```bash
-   # Create Lambda with AWSSDKPandas layer
-   aws lambda create-function \
-     --function-name sagewall-preprocessor \
-     --runtime python3.11 \
-     --handler lambda_function.lambda_handler \
-     --memory-size 1024 \
-     --timeout 180
-   ```
+```bash
+# Clone the repo
+git clone https://github.com/awzheng/SageWall.git
+cd SageWall
 
-2. **Configure S3 Trigger**
-   - Source Bucket: `sagewall-raw-zheng-1b`
-   - Destination Bucket: `sagewall-processed-zheng-1b`
-   - Event: `s3:ObjectCreated:*`
+# Install dependencies
+pip install -r requirements.txt
 
-3. **Upload Data & Train**
-   ```bash
-   # Upload training data to trigger preprocessing
-   aws s3 cp KDDTrain+.txt s3://sagewall-raw-zheng-1b/
-   
-   # Run the training notebook in SageMaker
-   ```
-
-4. **Deploy Endpoint & Test Inference**
-   ```python
-   # Sample inference call
-   response = predictor.predict(test_sample)
-   # Returns: [1.0] for ATTACK, [0.0] for NORMAL
-   ```
-
----
-
-## ✅ Results
-
-Successfully deployed and tested the end-to-end pipeline. The model correctly classified attack packets with **99% confidence**:
-
-```
-Test Input:  [0, 0, 0, 0.0, 0.0, 0.0, 0.0, ...]  (crafted attack vector)
-Prediction:  ATTACK
-Confidence:  0.99
+# Run the app
+streamlit run app.py
 ```
 
-| Sample | Label | Prediction | Confidence |
-|--------|-------|------------|------------|
-| Normal traffic | 0 | NORMAL | 0.98 |
-| DoS attack | 1 | **ATTACK** | 0.99 |
-| Probe attack | 1 | **ATTACK** | 0.97 |
+### Full Deployment
+
+1. **Deploy Lambda** with the `AWSSDKPandas` layer and 1024MB memory
+2. **Configure S3 trigger** to run Lambda on new uploads to your raw bucket
+3. **Run the notebook** in SageMaker Studio to train and deploy the endpoint
+4. **Connect the Streamlit app** by entering your endpoint name in the sidebar
+
+Check the notebook (`SageWall_Training.ipynb`) for detailed step-by-step instructions — I wrote it like a tutorial so it's easy to follow.
 
 ---
 
 ## 📚 Dataset
 
-**NSL-KDD** — An improved version of the KDD'99 dataset, widely used for benchmarking intrusion detection systems.
+**NSL-KDD** — The standard benchmark for intrusion detection research.
 
-- **Training Records:** 125,973
-- **Test Records:** 22,544
-- **Features:** 41 (after preprocessing: 100+ with one-hot encoding)
-- **Classes:** Normal, DoS, Probe, R2L, U2R
+- 125,973 training records
+- 41 features → 122 after one-hot encoding
+- 5 classes: Normal, DoS, Probe, R2L, U2R
 
 ---
 
-## 👤 Author
+## 🗺️ What's Next
+
+- [ ] Add automated testing with pytest
+- [ ] Deploy Streamlit app to AWS (EC2 or App Runner)
+- [ ] Add confusion matrix visualization
+- [ ] Try other models (Random Forest, Neural Net) for comparison
+
+---
+
+## 👤 About Me
 
 **Andrew Zheng**  
-1A Electrical & Computer Engineering  
+1B Electrical & Computer Engineering  
 University of Waterloo
+
+This was my first real cloud/ML project — built it over winter break 2025 to learn AWS and get hands-on with machine learning. Definitely learned a lot about debugging Lambda timeouts at 2am. 😅
+
+Feel free to reach out if you have questions or suggestions!
 
 ---
 
 ## 📄 License
 
-This project is for educational and portfolio purposes.
-
+MIT — use it however you want!
