@@ -1,4 +1,4 @@
-# 🛡️ SageWall
+# SageWall
 
 **Real-Time Network Intrusion Detection System using AWS SageMaker & XGBoost**
 
@@ -7,19 +7,31 @@
 ![Latency](https://img.shields.io/badge/Latency-%3C100ms-orange)
 ![Python](https://img.shields.io/badge/Python-3.11-yellow)
 
+---
+
+## TL;DR
+
+- Designed and deployed a **serverless ML pipeline** on AWS (S3, Lambda, SageMaker, SNS) to detect network intrusions in real-time
+- Trained an **XGBoost binary classifier** on 125,000+ NSL-KDD records, achieving **99.9% accuracy** with **<100ms inference latency**
+- Built an **ETL pipeline** using AWS Lambda and Pandas to preprocess raw network logs (one-hot encoding, feature engineering, schema validation)
+- Developed a **Streamlit web application** for real-time threat visualization and integrated **AWS SNS** for automated alerting on high-confidence detections
+- Resolved production issues including Lambda memory optimization (128MB to 1024MB) and data type compatibility bugs in the ML pipeline
+
+---
+
 > My first cloud engineering + ML project! Built this over winter break to teach myself AWS and machine learning. It detects network attacks (DoS, Probe, R2L, U2R) in real-time using XGBoost on SageMaker.
 
 ---
 
-## 🎬 What Is This?
+## What Is This?
 
-Traditional firewalls use static rules — they only catch attacks they already know about. SageWall uses **machine learning** to learn what "normal" network traffic looks like, so it can detect *new* attacks based on statistical anomalies.
+Traditional firewalls use static rules, so they only catch attacks they already know about. SageWall uses **machine learning** to learn what "normal" network traffic looks like, so it can detect *new* attacks based on statistical anomalies.
 
 Think of it like this: instead of memorizing every burglar's face, you learn what normal foot traffic looks like and flag anything weird.
 
 ---
 
-## 📐 Architecture
+## Architecture
 
 ```
 ┌─────────────────┐      ┌─────────────────┐      ┌─────────────────┐      ┌─────────────────┐
@@ -39,17 +51,17 @@ Think of it like this: instead of memorizing every burglar's face, you learn wha
 
 ---
 
-## ✨ Features
+## Features
 
-- **Streamlit Web App** — Clean UI to paste packet data and get instant threat predictions
-- **Real-time Inference** — SageMaker endpoint responds in <100ms
-- **SNS Alerting** — Sends email/SMS when threat confidence exceeds 90%
-- **Fully Serverless** — No servers to manage; Lambda + SageMaker handle everything
-- **Literate Notebook** — The training notebook reads like a tutorial, not just code
+- **Streamlit Web App:** Clean UI to paste packet data and get instant threat predictions
+- **Real-time Inference:** SageMaker endpoint responds in <100ms
+- **SNS Alerting:** Sends email/SMS when threat confidence exceeds 90%
+- **Fully Serverless:** No servers to manage; Lambda + SageMaker handle everything
+- **Literate Notebook:** The training notebook reads like a tutorial, not just code
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 | Category | Technologies |
 |----------|-------------|
@@ -61,7 +73,7 @@ Think of it like this: instead of memorizing every burglar's face, you learn wha
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 SageWall/
@@ -76,7 +88,7 @@ SageWall/
 
 ---
 
-## 🎯 Performance
+## Performance
 
 | Metric | Value |
 |--------|-------|
@@ -97,7 +109,7 @@ Packet #5: Real=ATTACK | AI Confidence=0.9998 -> ✅ CAUGHT
 
 ---
 
-## 🔧 Challenges I Ran Into (and Fixed!)
+## Challenges I Ran Into (and Fixed!)
 
 ### 1. Lambda Kept Timing Out
 
@@ -129,7 +141,7 @@ df = df.astype(float)  # belt and suspenders
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 - AWS Account with SageMaker access
@@ -157,21 +169,21 @@ streamlit run app.py
 3. **Run the notebook** in SageMaker Studio to train and deploy the endpoint
 4. **Connect the Streamlit app** by entering your endpoint name in the sidebar
 
-Check the notebook (`SageWall_Training.ipynb`) for detailed step-by-step instructions — I wrote it like a tutorial so it's easy to follow.
+Check the notebook (`SageWall_Training.ipynb`) for detailed step-by-step instructions. I wrote it like a tutorial so it's easy to follow.
 
 ---
 
-## 📚 Dataset
+## Dataset
 
-**NSL-KDD** — The standard benchmark for intrusion detection research.
+**NSL-KDD:** The standard benchmark for intrusion detection research.
 
 - 125,973 training records
-- 41 features → 122 after one-hot encoding
+- 41 features, 122 after one-hot encoding
 - 5 classes: Normal, DoS, Probe, R2L, U2R
 
 ---
 
-## 🗺️ What's Next
+## What's Next
 
 - [ ] Add automated testing with pytest
 - [ ] Deploy Streamlit app to AWS (EC2 or App Runner)
@@ -180,18 +192,18 @@ Check the notebook (`SageWall_Training.ipynb`) for detailed step-by-step instruc
 
 ---
 
-## 👤 About Me
+## About Me
 
 **Andrew Zheng**  
 1B Electrical & Computer Engineering  
 University of Waterloo
 
-This was my first real cloud/ML project — built it over winter break 2025 to learn AWS and get hands-on with machine learning. Definitely learned a lot about debugging Lambda timeouts at 2am. 😅
+This was my first real cloud/ML project. Built it over winter break 2025 to learn AWS and get hands-on with machine learning. Definitely learned a lot about debugging Lambda timeouts at 2am.
 
 Feel free to reach out if you have questions or suggestions!
 
 ---
 
-## 📄 License
+## License
 
-MIT — use it however you want!
+MIT. Use it however you want!
