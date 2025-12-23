@@ -19,15 +19,13 @@
 
 ---
 
-> My first cloud engineering + ML project! Built this over winter break to teach myself AWS and machine learning. It detects network attacks (DoS, Probe, R2L, U2R) in real-time using XGBoost on SageMaker.
+My first cloud engineering + ML project to teach myself AWS and machine learning. It detects network attacks (DoS, Probe, R2L, U2R) in real-time using XGBoost on SageMaker.
 
 ---
 
-## What Is This?
+## About
 
-Traditional firewalls use static rules, so they only catch attacks they already know about. SageWall uses **machine learning** to learn what "normal" network traffic looks like, so it can detect *new* attacks based on statistical anomalies.
-
-Think of it like this: instead of memorizing every burglar's face, you learn what normal foot traffic looks like and flag anything weird.
+Traditional firewalls use static rules, so they only catch attacks they already know about. SageWall uses machine learning to learn what "normal" network traffic looks like, so it can detect *new* attacks based on statistical anomalies.
 
 ---
 
@@ -109,38 +107,6 @@ Packet #5: Real=ATTACK | AI Confidence=0.9998 -> ✅ CAUGHT
 
 ---
 
-## Challenges I Ran Into (and Fixed!)
-
-### 1. Lambda Kept Timing Out
-
-**What happened:** Default Lambda memory (128MB) wasn't enough to run Pandas on the dataset. It would just... die.
-
-**The fix:** Bumped memory to 1024MB. Turns out Lambda scales CPU proportionally with RAM, so this also made it way faster.
-
-```
-# Before: TIMEOUT at 128 MB
-# After:  12.8 seconds at 1024 MB, only used 506 MB ✓
-```
-
-### 2. XGBoost Hated My Data Types
-
-**What happened:** `pd.get_dummies()` outputs `True`/`False` by default. XGBoost only accepts numbers and would crash during training with a cryptic error.
-
-**The fix:** Force integer output and then cast everything to floats:
-
-```python
-df = pd.get_dummies(df, columns=CATEGORICAL_COLUMNS, dtype=int)
-df = df.astype(float)  # belt and suspenders
-```
-
-### 3. boto3 Wouldn't Load on macOS
-
-**What happened:** Running `streamlit run app.py` locally on my Mac threw a weird permissions error when importing boto3 at startup.
-
-**The fix:** Moved the `import boto3` inside the function that actually needs it. Lazy loading FTW.
-
----
-
 ## Quick Start
 
 ### Prerequisites
@@ -183,7 +149,7 @@ Check the notebook (`SageWall_Training.ipynb`) for detailed step-by-step instruc
 
 ---
 
-## What's Next
+## Next Steps
 
 - [ ] Add automated testing with pytest
 - [ ] Deploy Streamlit app to AWS (EC2 or App Runner)
@@ -197,8 +163,6 @@ Check the notebook (`SageWall_Training.ipynb`) for detailed step-by-step instruc
 **Andrew Zheng**  
 1B Electrical & Computer Engineering  
 University of Waterloo
-
-This was my first real cloud/ML project. Built it over winter break 2025 to learn AWS and get hands-on with machine learning. Definitely learned a lot about debugging Lambda timeouts at 2am.
 
 Feel free to reach out if you have questions or suggestions!
 
