@@ -469,22 +469,12 @@ st.markdown("---")
 
 # Educational Expanders
 with st.expander("ℹ️ How SageWall Works"):
-    st.markdown("""
-    **The Concept:**
-    Instead of memorizing "bad IP addresses" (which changes constantly), SageWall learns "Bad Behavior".
-    
-    1. **Log Data**: We take network logs (bytes sent, login attempts, duration).
-    2. **Features**: We convert logs into numbers (Feature Vector).
-    3. **Model**: XGBoost analyzes these numbers against patterns it learned from 125,000 hacker attacks.
-    4. **Prediction**: It gives a probability score (0% to 100%) of the packet being malicious.
-    """)
+    with open("docs/how_sagewall_works.md", "r") as f:
+        st.markdown(f.read())
 
 with st.expander("📚 Beginner's Guide"):
-    st.markdown("""
-    1. **Deploy**: Use the `SageWall_Training.ipynb` notebook to launch your AI model on AWS.
-    2. **Configure**: Copy the 'Endpoint Name' from the notebook to the box above.
-    3. **Scan**: Click Scan. The app sends the data to AWS, gets the verdict, and shows you the result.
-    """)
+    with open("docs/beginners_guide.md", "r") as f:
+        st.markdown(f.read())
 
 # Footer
 st.markdown("""
