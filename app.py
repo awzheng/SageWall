@@ -36,6 +36,7 @@ The code is organized into clear sections:
 # Everywhere you see 'st.something()', we are creating a UI element.
 import streamlit as st
 import base64  # Used to encode image data (icons) so they can live directly in this file\
+from utils import alerts
 
 # =============================================================================
 # SECTION 2: HELPER FUNCTIONS & ASSETS
@@ -206,6 +207,7 @@ st.markdown(f"""
     /* 6. INPUT ELEMENTS: Making text boxes and sliders look native */
     .stTextArea textarea {{
         font-family: 'Monaco', 'Menlo', monospace; /* Monospace for data */
+        font-size: 10px;
         background-color: {c['bg_secondary']};
         color: {c['text']};
         border-color: {c['border']};
