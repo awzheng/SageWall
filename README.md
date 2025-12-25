@@ -76,12 +76,18 @@ Traditional firewalls use static rules, so they only catch attacks they already 
 ```
 SageWall/
 ├── app.py                    # Streamlit frontend (the UI!)
-├── alerts.py                 # SNS alerting module
-├── lambda_function.py        # ETL preprocessing pipeline
 ├── SageWall_Training.ipynb   # Literate programming notebook
+├── aws/
+│   └── lambda_function.py    # ETL preprocessing pipeline
+├── utils/
+│   ├── alerts.py             # SNS alerting module
+│   └── __init__.py
+├── docs/                     # Documentation & Guides
+│   ├── beginners_guide.md
+│   └── how_sagewall_works.md
+├── assets/images/            # Screenshots
 ├── requirements.txt          # Python dependencies
-├── README.md                 # You're reading this!
-└── images/                   # Documentation screenshots
+└── README.md                 # You're reading this!
 ```
 
 ---
