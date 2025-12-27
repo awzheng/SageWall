@@ -468,11 +468,11 @@ for i, (val, label) in enumerate(stats):
 st.markdown("---")
 
 # Educational Expanders
-with st.expander("ℹ️ How SageWall Works"):
+with st.expander("How SageWall Works"):
     with open("docs/how_sagewall_works.md", "r") as f:
         st.markdown(f.read())
 
-with st.expander("📚 Beginner's Guide"):
+with st.expander("Beginner's Guide"):
     with open("docs/beginners_guide.md", "r") as f:
         st.markdown(f.read())
 
