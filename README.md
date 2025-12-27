@@ -9,7 +9,14 @@
 
 ---
 
+## About
+
+Traditional firewalls use static rules, so they only catch attacks they already know about. SageWall uses machine learning to learn what "normal" network traffic looks like, so it can detect *new* attacks based on statistical anomalies.
+
+---
+
 ## Summary
+
 The overall architecture prepares the data in four stages:
 
 1. Ingest: Raw network logs land in our first S3 bucket (sagemaker_raw).
@@ -20,21 +27,13 @@ The overall architecture prepares the data in four stages:
 ---
 
 ## Technical Details
+
+- My first cloud engineering + ML project to teach myself AWS and machine learning. It detects network attacks (DoS, Probe, R2L, U2R) in real-time using XGBoost on SageMaker. 
 - Designed and deployed a **serverless ML pipeline** on AWS (S3, Lambda, SageMaker, SNS) to detect network intrusions in real-time
 - Trained an **XGBoost binary classifier** on 125,000+ NSL-KDD records, achieving **99.9% accuracy** with **<100ms inference latency**
 - Built an **ETL pipeline** using AWS Lambda and Pandas to preprocess raw network logs (one-hot encoding, feature engineering, schema validation)
 - Developed a **Streamlit web application** for real-time threat visualization and integrated **AWS SNS** for automated alerting on high-confidence detections
 - Resolved production issues including Lambda memory optimization (128MB to 1024MB) and data type compatibility bugs in the ML pipeline
-
----
-
-My first cloud engineering + ML project to teach myself AWS and machine learning. It detects network attacks (DoS, Probe, R2L, U2R) in real-time using XGBoost on SageMaker.
-
----
-
-## About
-
-Traditional firewalls use static rules, so they only catch attacks they already know about. SageWall uses machine learning to learn what "normal" network traffic looks like, so it can detect *new* attacks based on statistical anomalies.
 
 ---
 
