@@ -9,8 +9,17 @@
 
 ---
 
-## TL;DR
+## Summary
+The overall architecture prepares the data in four stages:
 
+1. Ingest: Raw network logs land in our first S3 bucket (sagemaker_raw).
+2. Process: AWS Lambda triggers automatically to clean and format the logs.
+3. Store: It extracts key features (Source IP, Port, Protocol) and saves the clean CSV to the processed S3 bucket (sagemaker_processed).
+4. Train (this notebook): SageMaker pulls this processed data to train our XGBoost model.
+
+---
+
+## Technical Details
 - Designed and deployed a **serverless ML pipeline** on AWS (S3, Lambda, SageMaker, SNS) to detect network intrusions in real-time
 - Trained an **XGBoost binary classifier** on 125,000+ NSL-KDD records, achieving **99.9% accuracy** with **<100ms inference latency**
 - Built an **ETL pipeline** using AWS Lambda and Pandas to preprocess raw network logs (one-hot encoding, feature engineering, schema validation)
