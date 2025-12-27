@@ -184,4 +184,4 @@ Feel free to reach out if you have questions or suggestions!
 
 ## License
 
-MIT. Use it however you want!
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
