@@ -455,7 +455,7 @@ stats = [
     ("Samples", "125K+")
 ]
 
-# Loop through stats to create cards (Efficient coding!)
+# Loop through stats to create cards
 for i, (val, label) in enumerate(stats):
     with cols[i]:
         st.markdown(f"""
@@ -468,13 +468,15 @@ for i, (val, label) in enumerate(stats):
 st.markdown("---")
 
 # Educational Expanders
+with st.expander("User Guide"):
+    with open("docs/user_guide.md", "r") as f:
+        st.markdown(f.read())
+
 with st.expander("How SageWall Works"):
     with open("docs/how_sagewall_works.md", "r") as f:
         st.markdown(f.read())
 
-with st.expander("Beginner's Guide"):
-    with open("docs/beginners_guide.md", "r") as f:
-        st.markdown(f.read())
+
 
 # Footer
 st.markdown("""
