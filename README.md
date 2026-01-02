@@ -28,7 +28,7 @@ The overall architecture prepares the data in four stages:
 
 ## System Diagrams
 
-### Simplified Pipeline
+### Simplified Architecture
 
 ![SageWall Simplified Pipeline](assets/diagrams/sagewall-simplified.png)
 
