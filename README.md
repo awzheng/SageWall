@@ -26,6 +26,21 @@ The overall architecture prepares the data in four stages:
 
 ---
 
+## System Diagrams
+
+### Simplified Pipeline
+
+![SageWall Simplified Pipeline](assets/diagrams/sagewall-simplified.png)
+
+### Training Pipeline
+
+![SageWall Training Pipeline](assets/diagrams/sagewall-write.png)
+
+### Inference Pipeline
+
+![SageWall Inference Pipeline](assets/diagrams/sagewall-read.png)
+
+
 ## Technical Details
 
 - My first cloud engineering + ML project to teach myself AWS and machine learning. It detects network attacks (DoS, Probe, R2L, U2R) in real-time using XGBoost on SageMaker. 
