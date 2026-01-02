@@ -32,11 +32,11 @@ The overall architecture prepares the data in four stages:
 
 ![SageWall Simplified Pipeline](assets/diagrams/sagewall-simplified.png)
 
-### Training Pipeline
+### Training (Write) Pipeline
 
 ![SageWall Training (Write) Pipeline](assets/diagrams/sagewall-write.png)
 
-### Inference Pipeline
+### Inference (Read) Pipeline
 
 ![SageWall Inference (Read) Pipeline](assets/diagrams/sagewall-read.png)
 
