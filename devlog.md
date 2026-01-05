@@ -11,16 +11,23 @@ Instagram, Discord @awzheng
 
 Several of my friends got hacked over this break which is honestly heartbreaking at the age of 18+.
 I remember getting my Discord hacked by Russians when I was 13 or 14, and having no clue about how the internet actually worked.
-Then, I wondered if it was possible to learn how to counter these attacks using the technology that we have 5 years later.
-It was finally time to put my $120 USD worth of AWS credits to good use.
+
+I wondered if it was possible to learn how to counter these attacks using the technology that we have 5 years later.
+Imagine if there was an AI watching every network request in real-time and flagging suspicious activity.
+My computer sent my password to a Russian hacker at 7am?
+No way!
+
+Plus, as the greedy ECE student I am (who thinks about System Design all the time btw...), I'm just borrowing Amazon's hardware to build my own system.
+If cyber criminals can automate attacks, it sounds about right for me to automate defenses!
+
+Alright, now you've heard my story. 
+It's finally time to put my $120 USD worth of AWS credits to good use.
 
 > Andrew! Do you play Valorant?
 
 nah.
 
 # Episode 1: Starting Out
-
-## Design Choices
 
 ## Project Diagrams
 
@@ -43,16 +50,16 @@ SageWall's system design diagrams use the AWS Architecture template so that we c
 
 Let's take a good look at the diagrams.
 
-Training is a batch, write-heavy process that runs once.
-That's the main pipeline that automates the ML workflow in AWS processes such as Lambda and SageMaker.
-I have lots of screenshots of myself setting up the training pipeline in the AWS console in the `assets/images` folder!
-Don't dox me!
+- Training is a batch, write-heavy process that runs once.
+    - That's the main pipeline that automates the ML workflow in AWS processes such as Lambda and SageMaker.
+- I have lots of screenshots of myself setting up the training pipeline in the AWS console in the `assets/images` folder!
+    - Don't dox me!
 
 Inference, on the other hand, is a low-latency, read-only process that needs to be always available for SageWall to make real-time predictions with new data. 
-For testing purposes, I split the NSL-KDD dataset txt file into 80/20 train/val splits.
-(I didn't have the resources to get hacked just to test my first AWS app 💔)
-By seperating them, I can scale inference independently. 
-If I get 1000 new requests/second, I don't need to retrain the model.
+- For testing purposes, I split the NSL-KDD dataset txt file into 80/20 train/val splits.
+    - (I didn't have the resources to get hacked just to test my first AWS app 💔)
+- By seperating them, I can scale inference independently. 
+    - If I get 1000 new requests/second, I don't need to retrain the model.
 
 ### Project Structure
 
@@ -93,7 +100,6 @@ Here are some brief descriptions of the project structure in table format:
 
 We're good now! Let's move onto setting up the Write Pipeline!
 
----
 
 # Episode 2: The Write Pipeline (Training)
 
@@ -106,8 +112,6 @@ If you happen to visit before I censor the screenshots, please don't dox me!
 - Training the model in SageMaker
 - Deploying the inference endpoint
 
----
-
 ## Phase 1: AWS Infrastructure Setup
 
 Fortunately, I had a decent Idea of what I was doing since I already had a simple architecture laid out in mind before setting anything up:
@@ -116,14 +120,14 @@ Fortunately, I had a decent Idea of what I was doing since I already had a simpl
 
 I decided to start out by setting up the S3 buckets (raw and processed data) and Lambda function (ETL pipeline).
 
-> Andrew! I just so happen to be conveniently following your steps, but when I registered my AWS app, they placed me into `us-east-2` (Ohio) instead of `us-east-1` (N. Virginia). Why did you choose `us-east-1` (N. Virginia)instead of the default region?
+> Andrew! I just so happen to be conveniently following your steps, but when I registered my AWS app, they placed me into `us-east-2` (Ohio) instead of `us-east-1` (N. Virginia). Why did you choose `us-east-1` (N. Virginia) instead of the default region?
 
 `us-east-1` receives features and services from AWS faster, so in case I improve SageWall in the future, I'll be able to keep up with the latest updates. 
 
 
 ### S3 Buckets
 
-I created two S3 (Simple Storage Service) buckets to organize the data pipeline, which netted me a total of three buckets:
+I created two S3 (Simple Storage Service) buckets on the AWS Console to organize the data pipeline, which netted me a total of three buckets:
 
 1. `sagewall-raw-zheng-1b` stores the raw NSL-KDD dataset (125K+ records), specifically the `KDDTrain+.txt` file.
 2. `sagewall-processed-zheng-1b` stores the cleaned CSV outputs after Lambda preprocessing. This is what we'll be feeding into SageMaker.
@@ -131,55 +135,42 @@ I created two S3 (Simple Storage Service) buckets to organize the data pipeline,
 
 By the way, `zheng-1b` is because this is the 1B term version of SageWall. Expect this to change in the future!
 
+> Andrew! What's the purpose of having S3 Buckets?
+
+The S3 bucket is our data lake.
+We need to store our downloaded dataset on `KDDTrain+.txt` on AWS which we'll call `sagewall-raw-zheng-1b`.
+
 > Andrew! Why three buckets? Isn't that overkill?
 
 Nope! This follows the single responsibility principle:
-- Raw = immutable source of truth
-- Processed = ready for ML consumption
+- Raw = `KDDTrain+.txt` (our "immutable source of truth")
+- Processed = ready for SageMaker's consumption
 - Models = versioned artifacts for deployment
 
-If something breaks, I can always re-run Lambda on the raw data without touching the model.
+In case it's unclear what the function of each bucket is, please refer to the simplified pipeline diagram above.
+Don't worry, I'll explain further in the following sections.
+
+By the way, if something breaks, I can always re-run Lambda on the raw data without touching the model.
 
 Please visit `assets/images` to see screenshots of me setting up the S3 buckets in the AWS console [here](assets/images/01 making raw bucket.png).
 
-### IAM Roles
-
-AWS services need execution roles to access other services. I created two roles:
-
-#### 1. Lambda Execution Role
-Permissions:
-- `s3:GetObject` on raw bucket
-- `s3:PutObject` on processed bucket
-- `logs:CreateLogGroup` and `logs:PutLogEvents` for CloudWatch
-
-#### 2. **SageMaker Execution Role**
-Permissions:
-- `s3:GetObject` on processed bucket
-- `s3:PutObject` on model bucket
-- `sagemaker:*` for training jobs and endpoints
-- `ecr:GetAuthorizationToken` to pull XGBoost Docker image
-
-> **Interview Prep: Why separate roles?**
->
-> **Least privilege principle** — Lambda doesn't need to create endpoints, and SageMaker doesn't need to read raw data. If one service gets compromised, the blast radius is limited.
-
----
-
 ## Phase 2: Lambda ETL Function
 
-This is the **heart of the Write Pipeline** — it transforms raw NSL-KDD logs into a format that SageMaker XGBoost can understand.
+This is our hero of the Write Pipeline.
+The Lambda function takes the raw NSL-KDD logs from `sagewall-raw-zheng-1b` as input and outputs them into `sagewall-processed-zheng-1b` in the AWS console.
 
-### The Challenge
+SageMaker's built-in XGBoost algorithm has strict requirements:
+1. No headers. The first row must be data, not column names
+2. Target column first. (This is Amazon SageMaker-specific). XGBoost expects the target variable to be the first column of any csv input.
+3. All numeric. Strings crash XGBoost so we need to find a way to convert the logs into numeric values
+4. Binary classification. NSL-KDD has 5 classes (normal, DoS, Probe, R2L, U2R) so we need to devise a way to classify the logs into binary values.
 
-SageMaker's built-in XGBoost has strict requirements:
-1. **No headers** — first row must be data, not column names
-2. **Target column first** — label must be in column 0
-3. **All numeric** — strings crash XGBoost
-4. **Binary classification** — NSL-KDD has 5 classes (normal, DoS, Probe, R2L, U2R)
+### `lambda_handler()`
 
-### The Solution: `lambda_handler()`
-
-Here's the complete Lambda function that solves all four problems:
+Here's the Lambda function for SageWall to solve our formatting needs. 
+The code is in Python 3.11.
+Remember, Lambda is our AWS specialist to clean up the raw data.
+Prepare your scrolling fingers!
 
 ```python
 # aws/lambda_function.py - lambda_handler()
@@ -299,9 +290,40 @@ def lambda_handler(event: dict, context) -> dict:
     }
 ```
 
-### Key Design Decisions
+Let's walk through the lambda function step by step.
 
-#### 1. **Why one-hot encoding?**
+1. Column Names
+
+This is a part of XGBoost's requirements. 
+XGBoost expects the target variable to be the first column.
+Naming the columns explicitly helps us in the following steps.
+
+> Andrew! What's the target variable here?
+
+The target variable that we're trying to predict is the `attack` column.
+This means that we're trying to predict whether a packet is an attack or not.
+SageWall will return a confidence score between 0 and 1, where 1 means the packet is an attack.
+Don't worry, it's made very clear in the streamlit frontend!
+
+2. Drop the "difficulty" column
+
+The difficulty column is meant for us to know the difficulty of the attack, but it is not a feature for the model.
+Ideally SageWall is able to handle all data regardless of difficulty.
+
+3. Target Engineering 
+
+> Andrew! What does target engineering mean?
+
+Target engineering means converting the target variable into a binary variable.
+
+i.e. here, if the attack class isn't "normal" we'll encode it as a 1.
+Afterwards, we can drop the label column since we don't need it anymore.
+
+4. Move target variable to column 0
+
+This is to ensure that the target variable is the first column as XGBoost requires.
+
+> Andrew! What's one-hot encoding? Why did you use it?
 
 XGBoost can't process strings like `'TCP'` or `'http'`. One-hot encoding converts categorical features into binary columns:
 
@@ -312,7 +334,7 @@ protocol_type: UDP → [0, 1, 0]
 
 This expands our 41 features to **122 features** (70 service types alone!).
 
-#### 2. **Why move target to column 0?**
+> Andrew! Why move target to column 0?
 
 SageMaker's built-in XGBoost container expects CSV in this format:
 ```
@@ -321,9 +343,9 @@ label, feature1, feature2, ..., feature122
 
 If we don't reorder, it trains on the wrong column and we get random predictions.
 
-#### 3. **Why use awswrangler instead of boto3?**
+> Andrew! Why did you choose to use awswrangler instead of boto3?
 
-`awswrangler` is a high-level abstraction over boto3 that handles pandas ↔ S3 conversions automatically:
+`awswrangler` is a high-level abstraction over boto3 that handles pandas ↔ S3 conversions automatically.
 
 ```python
 # boto3 (verbose)
