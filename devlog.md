@@ -91,17 +91,16 @@ Here are some brief descriptions of the project structure in table format:
 | **SageWall_Training.ipynb** | Jupyter notebook that trains XGBoost model and deploys endpoint | Training cells, deployment cells |
 | **requirements.txt** | Python dependencies (streamlit, boto3, pandas, etc.) | - |
 
+We're good now! Let's move onto setting up the Write Pipeline!
+
 ---
 
 # Episode 2: The Write Pipeline (Training)
 
-*"How I built a serverless ML training pipeline in AWS without losing my sanity (or my credits)"*
+Setting up the write pipeline felt as easy as following a YouTube IT tutorial, except that I was following the steps from Gemini instead of some generous man with a beautiful accent running a tech channel.
+Please drop by `assets/images` if you wanna see all the screenshots of me setting up the write pipeline in the AWS console!
+If you happen to visit before I censor the screenshots, please don't dox me!
 
-## Overview
-
-The Write Pipeline is where the magic happens — this is the **one-time setup** that trains the XGBoost model to detect network intrusions.
-
-**What we'll cover:**
 - Setting up AWS infrastructure (S3, Lambda, SageMaker, IAM)
 - Building the ETL pipeline in Lambda
 - Training the model in SageMaker
@@ -111,28 +110,43 @@ The Write Pipeline is where the magic happens — this is the **one-time setup**
 
 ## Phase 1: AWS Infrastructure Setup
 
+Fortunately, I had a decent Idea of what I was doing since I already had a simple architecture laid out in mind before setting anything up:
+
+![SageWall Simplified Pipeline](assets/diagrams/sagewall-simplified.png)
+
+I decided to start out by setting up the S3 buckets (raw and processed data) and Lambda function (ETL pipeline).
+
+> Andrew! I just so happen to be conveniently following your steps, but when I registered my AWS app, they placed me into `us-east-2` (Ohio) instead of `us-east-1` (N. Virginia). Why did you choose `us-east-1` (N. Virginia)instead of the default region?
+
+`us-east-1` receives features and services from AWS faster, so in case I improve SageWall in the future, I'll be able to keep up with the latest updates. 
+
+
 ### S3 Buckets
 
-I created three S3 buckets to organize the data pipeline:
+I created two S3 (Simple Storage Service) buckets to organize the data pipeline, which netted me a total of three buckets:
 
-1. **`sagewall-raw-zheng-1b`** — stores the raw NSL-KDD dataset (125K+ records)
-2. **`sagewall-processed-zheng-1b`** — stores cleaned CSV after Lambda preprocessing
-3. **(Implicit) SageMaker default bucket** — stores trained model artifacts (`model.tar.gz`)
+1. `sagewall-raw-zheng-1b` stores the raw NSL-KDD dataset (125K+ records), specifically the `KDDTrain+.txt` file.
+2. `sagewall-processed-zheng-1b` stores the cleaned CSV outputs after Lambda preprocessing. This is what we'll be feeding into SageMaker.
+3. (Implicit) SageMaker AI default bucket stores trained model artifacts (`model.tar.gz`).
 
-> **Andrew! Why three buckets? Isn't that overkill?**
+By the way, `zheng-1b` is because this is the 1B term version of SageWall. Expect this to change in the future!
 
-Nope! This follows the **single responsibility principle**:
+> Andrew! Why three buckets? Isn't that overkill?
+
+Nope! This follows the single responsibility principle:
 - Raw = immutable source of truth
 - Processed = ready for ML consumption
 - Models = versioned artifacts for deployment
 
 If something breaks, I can always re-run Lambda on the raw data without touching the model.
 
+Please visit `assets/images` to see screenshots of me setting up the S3 buckets in the AWS console [here](assets/images/01 making raw bucket.png).
+
 ### IAM Roles
 
-AWS services need **execution roles** to access other services. I created two roles:
+AWS services need execution roles to access other services. I created two roles:
 
-#### 1. **Lambda Execution Role**
+#### 1. Lambda Execution Role
 Permissions:
 - `s3:GetObject` on raw bucket
 - `s3:PutObject` on processed bucket
