@@ -7,13 +7,15 @@
 ![Latency](https://img.shields.io/badge/Latency-%3C100ms-orange)
 ![Python](https://img.shields.io/badge/Python-3.11-yellow)
 
----
+## ‼️ Read the DevLog ‼️
+
+I documented the entire development process, technical decisions, and reasoning behind every design choice in the devlog. It covers the Write Path (setting up SageMaker), Read Path (including the Streamlit frontend), and all the lessons learned along the way. No AI slop, fully authentic. I promise.
+
+Check it out here: [devlog.md](devlog.md)
 
 ## About
 
 Traditional firewalls use static rules, so they only catch attacks they already know about. SageWall uses machine learning to learn what "normal" network traffic looks like, so it can detect *new* attacks based on statistical anomalies.
-
----
 
 ## Summary
 
@@ -23,8 +25,6 @@ The overall architecture prepares the data in four stages:
 2. Process: AWS Lambda triggers automatically to clean and format the logs.
 3. Store: It extracts key features (Source IP, Port, Protocol) and saves the clean CSV to the processed S3 bucket (sagemaker_processed).
 4. Train (this notebook): SageMaker pulls this processed data to train our XGBoost model.
-
----
 
 ## System Diagrams
 
@@ -50,8 +50,6 @@ The overall architecture prepares the data in four stages:
 - Developed a **Streamlit web application** for real-time threat visualization and integrated **AWS SNS** for automated alerting on high-confidence detections
 - Resolved production issues including Lambda memory optimization (128MB to 1024MB) and data type compatibility bugs in the ML pipeline
 
----
-
 ## Architecture
 
 ```
@@ -70,8 +68,6 @@ The overall architecture prepares the data in four stages:
                               └─────────────────────┘
 ```
 
----
-
 ## Features
 
 - **Streamlit Web App:** Clean UI to paste packet data and get instant threat predictions
@@ -79,8 +75,6 @@ The overall architecture prepares the data in four stages:
 - **SNS Alerting:** Sends email/SMS when threat confidence exceeds 90%
 - **Fully Serverless:** No servers to manage; Lambda + SageMaker handle everything
 - **Literate Notebook:** The training notebook reads like a tutorial, not just code
-
----
 
 ## Tech Stack
 
@@ -91,8 +85,6 @@ The overall architecture prepares the data in four stages:
 | **Frontend** | Streamlit |
 | **SDK** | Boto3, AWS Data Wrangler |
 | **Runtime** | Python 3.11 |
-
----
 
 ## Project Structure
 
@@ -113,8 +105,6 @@ SageWall/
 └── README.md                 # You're reading this!
 ```
 
----
-
 ## Performance
 
 | Metric | Value |
@@ -133,8 +123,6 @@ Packet #3: Real=ATTACK | AI Confidence=0.9999 -> ✅ CAUGHT
 Packet #4: Real=Normal | AI Confidence=0.0003 -> ✅ CLEARED
 Packet #5: Real=ATTACK | AI Confidence=0.9998 -> ✅ CAUGHT
 ```
-
----
 
 ## Quick Start
 
@@ -166,8 +154,6 @@ streamlit run app.py
 
 Check the notebook (`SageWall_Training.ipynb`) for detailed step-by-step instructions. I wrote it like a tutorial so it's easy to follow.
 
----
-
 ## Dataset
 
 **NSL-KDD:** The standard benchmark for intrusion detection research.
@@ -176,16 +162,12 @@ Check the notebook (`SageWall_Training.ipynb`) for detailed step-by-step instruc
 - 41 features, 122 after one-hot encoding
 - 5 classes: Normal, DoS, Probe, R2L, U2R
 
----
-
 ## Next Steps
 
 - [ ] Add automated testing with pytest
 - [ ] Deploy Streamlit app to AWS (EC2 or App Runner)
 - [ ] Add confusion matrix visualization
 - [ ] Try other models (Random Forest, Neural Net) for comparison
-
----
 
 ## About Me
 
@@ -194,8 +176,6 @@ Check the notebook (`SageWall_Training.ipynb`) for detailed step-by-step instruc
 University of Waterloo
 
 Feel free to reach out if you have questions or suggestions!
-
----
 
 ## License
 
