@@ -50,8 +50,8 @@ SageWall's system design diagrams use the AWS Architecture template so that we c
 
 Let's take a good look at the diagrams.
 
-- Training is a batch, write-heavy process that runs once.
-    - That's the main pipeline that automates the ML workflow in AWS processes such as Lambda and SageMaker.
+Training is a batch, write-heavy process that runs once.
+- That's the main pipeline that automates the ML workflow in AWS processes such as Lambda and SageMaker.
 - I have lots of screenshots of myself setting up the training pipeline in the AWS console in the `assets/images` folder!
     - Don't dox me!
 
@@ -103,14 +103,8 @@ We're good now! Let's move onto setting up the Write Pipeline!
 
 # Episode 2: The Write Pipeline (Training)
 
-Setting up the write pipeline felt as easy as following a YouTube IT tutorial, except that I was following the steps from Gemini instead of some generous man with a beautiful accent running a tech channel.
 Please drop by `assets/images` if you wanna see all the screenshots of me setting up the write pipeline in the AWS console!
 If you happen to visit before I censor the screenshots, please don't dox me!
-
-- Setting up AWS infrastructure (S3, Lambda, SageMaker, IAM)
-- Building the ETL pipeline in Lambda
-- Training the model in SageMaker
-- Deploying the inference endpoint
 
 ## Phase 1: AWS Infrastructure Setup
 
@@ -135,9 +129,10 @@ I created two S3 (Simple Storage Service) buckets on the AWS Console to organize
 
 By the way, `zheng-1b` is because this is the 1B term version of SageWall. Expect this to change in the future!
 
-> Andrew! What's the purpose of having S3 Buckets?
+> Andrew! Why did you choose to create an S3 bucket?
 
-The S3 bucket is our data lake.
+Let's take `sagewall-raw-zheng-1b` as an example. 
+This S3 bucket is our data lake.
 We need to store our downloaded dataset on `KDDTrain+.txt` on AWS which we'll call `sagewall-raw-zheng-1b`.
 
 > Andrew! Why three buckets? Isn't that overkill?
@@ -147,25 +142,30 @@ Nope! This follows the single responsibility principle:
 - Processed = ready for SageMaker's consumption
 - Models = versioned artifacts for deployment
 
+Imagine if just one bucket stored all of our data and it got corrupted. 
+Time to start over from scratch!
+Don't put all your eggs in one basket!
+
 In case it's unclear what the function of each bucket is, please refer to the simplified pipeline diagram above.
 Don't worry, I'll explain further in the following sections.
 
 By the way, if something breaks, I can always re-run Lambda on the raw data without touching the model.
 
-Please visit `assets/images` to see screenshots of me setting up the S3 buckets in the AWS console [here](assets/images/01 making raw bucket.png).
+Please visit `assets/images` to see screenshots of me setting up the S3 buckets in the AWS console.
 
 ## Phase 2: Lambda ETL Function
 
 This is our hero of the Write Pipeline.
-The Lambda function takes the raw NSL-KDD logs from `sagewall-raw-zheng-1b` as input and outputs them into `sagewall-processed-zheng-1b` in the AWS console.
+The Lambda function automatically triggers when we upload raw data to `sagewall-raw-zheng-1b`, which is considered an S3 PUT Event.
+(In the write pipeline system diagram, this is represented as S3 PUT Event trigger.)
 
 SageMaker's built-in XGBoost algorithm has strict requirements:
 1. No headers. The first row must be data, not column names
-2. Target column first. (This is Amazon SageMaker-specific). XGBoost expects the target variable to be the first column of any csv input.
+2. Target column first. (This is Amazon SageMaker-specific). SageMaker's containerized XGBoost expects the target variable to be the first column of any csv input.
 3. All numeric. Strings crash XGBoost so we need to find a way to convert the logs into numeric values
 4. Binary classification. NSL-KDD has 5 classes (normal, DoS, Probe, R2L, U2R) so we need to devise a way to classify the logs into binary values.
 
-### `lambda_handler()`
+### lambda_handler()
 
 Here's the Lambda function for SageWall to solve our formatting needs. 
 The code is in Python 3.11.
@@ -294,8 +294,7 @@ Let's walk through the lambda function step by step.
 
 1. Column Names
 
-This is a part of XGBoost's requirements. 
-XGBoost expects the target variable to be the first column.
+This is a great habit for data engineering!
 Naming the columns explicitly helps us in the following steps.
 
 > Andrew! What's the target variable here?
@@ -309,6 +308,9 @@ Don't worry, it's made very clear in the streamlit frontend!
 
 The difficulty column is meant for us to know the difficulty of the attack, but it is not a feature for the model.
 Ideally SageWall is able to handle all data regardless of difficulty.
+If we included difficulty, we would be leaking information about the attack into the model.
+Think of doing a practice test while using the answer key!
+Let's stay honest and measure our accuracy legitimately.
 
 3. Target Engineering 
 
@@ -323,58 +325,78 @@ Afterwards, we can drop the label column since we don't need it anymore.
 
 This is to ensure that the target variable is the first column as XGBoost requires.
 
+5. One-hot encoding
+
 > Andrew! What's one-hot encoding? Why did you use it?
 
 XGBoost can't process strings like `'TCP'` or `'http'`. One-hot encoding converts categorical features into binary columns:
 
 ```
-protocol_type: TCP → [1, 0, 0]  # protocol_TCP=1, protocol_UDP=0, protocol_ICMP=0
-protocol_type: UDP → [0, 1, 0]
+protocol_type: TCP → [1, 0, 0]  # protocol_TCP=1 (true), protocol_UDP=0 (false), protocol_ICMP=0 (false)
+protocol_type: UDP → [0, 1, 0]  # protocol_TCP=0 (false), protocol_UDP=1 (true), protocol_ICMP=0 (false)
 ```
 
-This expands our 41 features to **122 features** (70 service types alone!).
+It's pretty intuitive this way. 
+If it's true that the protocol is TCP, then it's false that the protocol is UDP or ICMP.
+It works the same way for the other types of protocols.
 
-> Andrew! Why move target to column 0?
+This expands our 41 features to 122 features.
 
-SageMaker's built-in XGBoost container expects CSV in this format:
+> Andrew! Where is the number 41 derived from? Why does it go from 41 to 122?
+
+The number 41 is derived from the number of identifying features in the dataset:
+- 38 numeric features
+- 3 categorial features (the [1,0,0]) from the example above
+
+One-hot encoding adds the following features:
+- `service` includes 70 features such as http, ftp, smtp, telnet, etc.
+- `flag` includes 11 features such as SF_, S_, R_, etc.
+
+So, in case you were wondering what it looks like in binary:
+
+If we take the "before" as:
+
 ```
-label, feature1, feature2, ..., feature122
+protocol_type, service, ...
+TCP,           http,    ...
 ```
 
-If we don't reorder, it trains on the wrong column and we get random predictions.
+our "after" becomes:
 
-> Andrew! Why did you choose to use awswrangler instead of boto3?
-
-`awswrangler` is a high-level abstraction over boto3 that handles pandas ↔ S3 conversions automatically.
-
-```python
-# boto3 (verbose)
-s3 = boto3.client('s3')
-obj = s3.get_object(Bucket=bucket, Key=key)
-df = pd.read_csv(obj['Body'])
-
-# awswrangler (clean)
-df = wr.s3.read_csv(f"s3://{bucket}/{key}")
+```
+protocol_TCP, protocol_UDP, protocol_ICMP, service_http, service_ftp, ...
+1,            0,            0,              1,            0,            ...
 ```
 
-### Deployment Configuration
+Thus, 41 + 70 + 11 = 122 features.
 
-- **Runtime:** Python 3.11
-- **Memory:** 1024 MB (needed for pandas operations on 125K rows)
-- **Timeout:** 3 minutes
-- **Layer:** `AWSSDKPandas-Python311` (includes awswrangler + pandas)
+> Andrew! Why did you choose to use the awswrangler library instead of boto3?
 
-### Trigger Setup
+`awswrangler` is a high-level abstraction over boto3 that handles pandas to S3 conversions (and vice versa) automatically.
+It's just the superior library for edge cases.
 
-I configured an **S3 Event Notification** on the raw bucket:
+### Additional Setup
+
+AWS Lambda requires a layer to run pandas. 
+I chose to add the `AWSSDKPandas-Python311` layer to the Lambda function.
+This way, we wouldn't need to include a huge pandas library with the code every time.
+
+I also had to configure an S3 Event Notification on the raw bucket with the following specifications:
 - **Event type:** `s3:ObjectCreated:*`
 - **Prefix:** (none)
 - **Suffix:** `.txt`
 - **Destination:** Lambda function `sagewall-etl`
 
-**Result:** Every time I upload a file to the raw bucket, Lambda automatically processes it!
+This way, every time we upload a file to the raw bucket, Lambda automatically processes it!
 
----
+> Andrew! What's all this work for? Why not just process the file manually?
+
+AWS Lambda has a strict 50MB zipped limit on direct code uploads.
+Now, that doesn't sound like much, but libraries like Pandas and NumPy are way larger unzipped.
+My wallet isn't trying to get caught pants down for a compute time charge due to data transfer!
+Plus, using layers allows for faster deployments and being able to edit/update our code without re-uploading pandas every time.
+
+Thus by attaching as a layer, the deployment package stays lightweight at just several KB, speeding up the process.
 
 ## Phase 3: SageMaker Training
 
@@ -951,4 +973,3 @@ Next steps for production:
 - [ ] Real-time monitoring dashboard
 
 Thanks for reading! Hit me up if you have questions 🚀
-
