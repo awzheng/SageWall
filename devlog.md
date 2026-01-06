@@ -98,8 +98,21 @@ Here are some brief descriptions of the project structure in table format:
 | **SageWall_Training.ipynb** | Jupyter notebook that trains XGBoost model and deploys endpoint | Training cells, deployment cells |
 | **requirements.txt** | Python dependencies (streamlit, boto3, pandas, etc.) | - |
 
-We're good now! Let's move onto setting up the Write Pipeline!
 
+> Andrew! "Why XGBoost over Neural Networks?"
+
+XGBoost is ideal for tabular data (which means data that's organized in a table with structured features).
+Here's 4 reasons why:
+- Trains faster (5 mins vs. hours)
+- Requires less data (125K samples is plenty)
+- More interpretable (feature importance)
+- Lower inference latency (<100ms)
+No I didn't watch the TV show.
+
+Don't get me wrong, neural networks shine for unstructured data like images or text, but they're overkill for CSV-based network logs.
+Look out for my future projects in case I become a neural network demon!
+
+We're good now! Let's move onto setting up the Write Pipeline!
 
 # Episode 2: The Write Pipeline (Training)
 
@@ -402,13 +415,34 @@ To end this section off, here's the screenshot of the Cloudlog showing the Lambd
 
 ![victory lap](assets/images/05-victory-lap--1024-mb.png)
 
+> Andrew! I just so happened to be conveniently following your steps but I ran out of memory! How did you address memory issues?
+
+Yes, okay, I admit it. 
+The Lambda function exceeded the memory limit a few times.
+Much to my wallet's dismay, I had to increase the memory limit all the way to 1024 MB.
+Take a look at my attempt with 512 MB and how it just barely stayed within the limit!
+
+![506 mb](assets/images/04-first-successful-log--506-mb.png)
+
+When I tried again with 1024 MB, it used just over 512 MB:
+
+![1024 mb](assets/images/05-victory-lap--1024-mb.png)
+
+Thank goodness we expanded the memory limit!
+
 ## Phase 3: SageMaker Training
 
-With the data now clean, it's time to train the XGBoost model.
+With the data now clean, it's time to train SageMaker AI using Jupyter Notebook.
 
 ### The Jupyter Notebook Workflow
 
-I used SageMaker Studio to run `SageMaker_Training.ipynb`, which:
+I created a notebook instance with JupyterLab 4 and Amazon Linux 2.
+
+I also granted it an IAM policy: it has access to any S3 bucket for this project (simply because this was my first ever AWS project.)
+In a real production environment, we must restrict access to only the S3 buckets we need, which are raw and processed.
+This follows the principle of least privilege.
+
+Here are the duties of `SageMaker_Training.ipynb` in order:
 1. Downloads processed data from S3
 2. Splits into 80% training, 20% validation
 3. Trains XGBoost with tuned hyperparameters
@@ -417,7 +451,9 @@ I used SageMaker Studio to run `SageMaker_Training.ipynb`, which:
 
 ### Key Notebook Sections
 
-#### 1. **Data Preparation**
+#### 1. Data Preparation
+
+This excerpt is from the upper half of the 1st cell:
 
 ```python
 # Download the clean file from processed bucket
@@ -435,11 +471,15 @@ train_data.to_csv('train.csv', index=False, header=False)
 val_data.to_csv('validation.csv', index=False, header=False)
 ```
 
-> **Andrew! Why random_state=42?**
+As you can see, we use 80% of the data for training and 20% for testing.
 
-Reproducibility! Using the same random seed ensures I get identical train/val splits every time I re-run the notebook. `42` is a programmer meme (Hitchhiker's Guide to the Galaxy).
+> Andrew! Why random_state=42?
 
-#### 2. **XGBoost Configuration**
+Using the same random seed (yes, just like from Minecraft) ensures I get identical train/val splits every time I re-run the notebook.
+
+#### 2. XGBoost Configuration
+
+This excerpt is from the lower half of the 1st cell:
 
 ```python
 # Set Hyperparameters
@@ -454,18 +494,24 @@ xgb_estimator.set_hyperparameters(
 )
 ```
 
-> **Interview Prep: How did you choose these hyperparameters?**
->
-> I started with XGBoost defaults, then tuned based on validation accuracy. `max_depth=5` prevents the model from memorizing training data. `eta=0.2` is a good balance between training speed and accuracy. In production, I'd use SageMaker Hyperparameter Tuning to automate this.
+> Andrew!How did you choose these hyperparameters?
 
-#### 3. **Training Job**
+I started with XGBoost defaults, then tuned based on validation accuracy. 
+`max_depth=5` prevents the model from memorizing training data. 
+- This is a common practice in machine learning to prevent overfitting, which is when a model gets way too caught up in the details of the training data and performs poorly on generalizing to new data.
+`eta=0.2` is a good balance between training speed and accuracy. 
+- In production, I'd use SageMaker Hyperparameter Tuning to automate this.
+
+#### 3. Training Job
+
+This excerpt is the last line of the 1st cell:
 
 ```python
 # Start Training
 xgb_estimator.fit({'train': s3_train_input, 'validation': s3_val_input})
 ```
 
-This creates a **SageMaker Training Job** that:
+This creates a SageMaker Training Job that:
 - Spins up an `ml.m5.large` instance
 - Pulls the XGBoost Docker container
 - Downloads train/val data from S3
@@ -473,9 +519,12 @@ This creates a **SageMaker Training Job** that:
 - Saves `model.tar.gz` to S3
 - Terminates the instance (stops billing)
 
-**Cost:** ~$0.20 per training run
+It costs about $0.20 per training run.
 
-#### 4. **Deployment**
+#### 4. Deployment
+
+After training, we deploy the model to a SageMaker endpoint.
+Here's an excerpt from the second cell:
 
 ```python
 # Deploy the Model
@@ -488,21 +537,24 @@ xgb_predictor = xgb_estimator.deploy(
 print(f"Model deployed! Endpoint name: {xgb_predictor.endpoint_name}")
 ```
 
-This creates a **persistent SageMaker Endpoint** that:
+This creates a persistent SageMaker Endpoint that:
 - Loads `model.tar.gz` into memory
 - Exposes an HTTPS API for predictions
 - Scales to handle concurrent requests
 - Runs 24/7 until deleted
 
-**Cost:** ~$0.05/hour (~$36/month if left running)
+It'll also eventually allow the us to paste our specific endpoint name into our streamlit frontend and use that to process new data!
 
----
+This costs me about $0.05/hour (or about $36/month if left running).
 
 ## Phase 4: Testing the Model
 
+Finally, we get to test if our creation works!
+
 ### Validation Results
 
-I tested the trained model on 5 samples from the validation set:
+I tested the trained model on 5 samples from the validation set and told SageMaker to print its predictions.
+Here goes:
 
 ```
 --- 🛡️ SAGEWALL DETECTION LOG ---
@@ -513,69 +565,10 @@ Packet #4: Real=Normal | AI Confidence=0.0003 -> ✅ CLEARED
 Packet #5: Real=ATTACK | AI Confidence=0.9998 -> ✅ CAUGHT
 ```
 
-**Perfect 5/5!** The model achieved **99.9% accuracy** on the full validation set.
-
----
-
-## Common Interview Questions (Episode 2)
-
-### Q1: *"Why use Lambda instead of processing locally?"*
-
-**A:** Three reasons:
-1. **Scalability** — Lambda auto-scales to process multiple files in parallel
-2. **Event-driven** — no need to poll S3 or run cron jobs
-3. **Cost** — I only pay for the ~3 seconds of compute time per file
-
-If I processed locally, I'd need to keep my laptop running or set up a persistent EC2 instance.
-
----
-
-### Q2: *"Why XGBoost over Neural Networks?"*
-
-**A:** XGBoost is ideal for **tabular data** with structured features:
-- Trains faster (5 mins vs. hours)
-- Requires less data (125K samples is plenty)
-- More interpretable (feature importance)
-- Lower inference latency (<100ms)
-
-Neural networks shine for **unstructured data** (images, text), but they're overkill for CSV-based network logs.
-
----
-
-### Q3: *"How would you handle concept drift in production?"*
-
-**A:** Network attack patterns evolve over time, so the model needs retraining:
-
-1. **Monitor accuracy** — track false positives/negatives in CloudWatch
-2. **A/B test** — deploy new model to 10% of traffic, compare metrics
-3. **Automate retraining** — use EventBridge to retrain monthly with latest data
-4. **Version models** — store model artifacts with timestamps in S3
-
-I didn't implement this in the PoC, but it's my first production improvement.
-
----
-
-### Q4: *"What if Lambda runs out of memory?"*
-
-**A:** I started with 128MB (default) and hit:
-```
-Runtime.OutOfMemoryError: Memory limit exceeded
-```
-
-pandas operations on 125K rows need more RAM. I increased to **1024MB** and it worked perfectly. You can allocate up to 10GB in Lambda.
-
----
-
-### Q5: *"Why 80/20 split instead of 70/30 or 90/10?"*
-
-**A:** 80/20 is the ML industry standard for a few reasons:
-- **Enough training data** to learn patterns (100K samples)
-- **Enough validation data** for reliable accuracy measurement (25K samples)
-- **Reproducible results** — most research papers use 80/20
-
-For smaller datasets (<1000 samples), I'd use cross-validation instead.
-
----
+Well well well!
+The model achieved 99.9% accuracy on the full validation set.
+Looks like it's ready to go!
+Frontend time!
 
 # Episode 3: The Read Pipeline (Inference)
 
