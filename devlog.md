@@ -342,7 +342,9 @@ This is to ensure that the target variable is the first column as XGBoost requir
 
 > Andrew! What's one-hot encoding? Why did you use it?
 
-XGBoost can't process strings like `'TCP'` or `'http'`. One-hot encoding converts categorical features into binary columns:
+XGBoost can't process strings like `'TCP'` or `'http'`. 
+Additionally, booleans sometimes are returned as "True" or "False" instead of integers 0 or 1.
+One-hot encoding converts categorical features into binary columns:
 
 ```
 protocol_type: TCP → [1, 0, 0]  # protocol_TCP=1 (true), protocol_UDP=0 (false), protocol_ICMP=0 (false)
@@ -415,6 +417,10 @@ To end this section off, here's the screenshot of the Cloudlog showing the Lambd
 
 ![victory lap](assets/images/05-victory-lap--1024-mb.png)
 
+Here's the processed output below!
+
+![output KDDTrain.txt](assets/images/08-ints-success.png)
+
 > Andrew! I just so happened to be conveniently following your steps but I ran out of memory! How did you address memory issues?
 
 Yes, okay, I admit it. 
@@ -430,9 +436,18 @@ When I tried again with 1024 MB, it used just over 512 MB:
 
 Thank goodness we expanded the memory limit!
 
-## Phase 3: SageMaker Training
+## Phase 3: Training in SageMaker
 
-With the data now clean, it's time to train SageMaker AI using Jupyter Notebook.
+With the data now clean, it's time to train XGBoost using a SageMaker Jupyter Notebook!
+
+> Andrew! Are we training XGBoost or SageMaker?
+
+Don't worry, I had that misconception too.
+We're training SageMaker's built-in XGBoost algorithm.
+SageMaker is the platform and XGBoost is the algorithm.
+
+If that's still unclear, let's think about it like the gym.
+You don't train the gym, you train your muscles in the gym!
 
 ### The Jupyter Notebook Workflow
 
@@ -471,11 +486,13 @@ train_data.to_csv('train.csv', index=False, header=False)
 val_data.to_csv('validation.csv', index=False, header=False)
 ```
 
-As you can see, we use 80% of the data for training and 20% for testing.
+As you can see, we use 80% of the data for training and 20% for validation.
 
 > Andrew! Why random_state=42?
 
+We're making the RNG consistent so that we can reproduce errors for debugging purposes.
 Using the same random seed (yes, just like from Minecraft) ensures I get identical train/val splits every time I re-run the notebook.
+Many ML tutorials out there use 42 as a Hitchhiker's Guide to the Galaxy reference, so who are we to object?
 
 #### 2. XGBoost Configuration
 
@@ -497,10 +514,14 @@ xgb_estimator.set_hyperparameters(
 > Andrew!How did you choose these hyperparameters?
 
 I started with XGBoost defaults, then tuned based on validation accuracy. 
-`max_depth=5` prevents the model from memorizing training data. 
-- This is a common practice in machine learning to prevent overfitting, which is when a model gets way too caught up in the details of the training data and performs poorly on generalizing to new data.
-`eta=0.2` is a good balance between training speed and accuracy. 
-- In production, I'd use SageMaker Hyperparameter Tuning to automate this.
+Let's examine some hyperparameters individually:
+
+- `max_depth=5` prevents the model from memorizing training data. This is a common practice in machine learning to prevent overfitting, which is when a model gets way too caught up in the details of the training data and performs poorly on generalizing to new data.
+
+- `eta=0.2` proved to be a good balance between training speed and accuracy. Think "higher = faster but less accurate". Our model has some personality to it!
+
+By the way, my method, known as manual hyperparameter tuning, is just re-running the notebook with different values and keeping the best combo you can find. 
+In production, I'd use SageMaker Hyperparameter Tuning to automate this.
 
 #### 3. Training Job
 
@@ -513,13 +534,26 @@ xgb_estimator.fit({'train': s3_train_input, 'validation': s3_val_input})
 
 This creates a SageMaker Training Job that:
 - Spins up an `ml.m5.large` instance
-- Pulls the XGBoost Docker container
 - Downloads train/val data from S3
 - Trains for ~3-5 minutes
-- Saves `model.tar.gz` to S3
-- Terminates the instance (stops billing)
+- Saves `model.tar.gz` to S3 (the S3 bucket in SageMaker, treat it like a cloud drive)
+- Terminates the instance (stops draining our wallet finally)
 
 It costs about $0.20 per training run.
+
+> Andrew! Would it be technically correct if I said that SageMaker pulls the XGBoost Docker container?
+
+Yes, that would be correct, but let's add some context.
+The container contains a pre-trained XGBoost model, optimized for AWS hardware.
+It also saves `model.tar.gz` to S3.
+
+This way, SageWall starts up consistently fast and is easily scalable.
+We just use the same version of XGBoost every time, and SageMaker handles the rest in the same container.
+
+> Andrew! Could we train XGBoost locally instead of using SageMaker?
+
+Yeah, theoretically we could, but it's a cloud project and SageMaker's containerized approach is the perfect fit for the job.
+Trust me, it's worth the 20 cents for the smooth experience, especially since I started out as a complete beginner!
 
 #### 4. Deployment
 
@@ -537,15 +571,26 @@ xgb_predictor = xgb_estimator.deploy(
 print(f"Model deployed! Endpoint name: {xgb_predictor.endpoint_name}")
 ```
 
-This creates a persistent SageMaker Endpoint that:
+This creates a persistent SageMaker Endpoint that does the following:
 - Loads `model.tar.gz` into memory
 - Exposes an HTTPS API for predictions
-- Scales to handle concurrent requests
 - Runs 24/7 until deleted
 
-It'll also eventually allow the us to paste our specific endpoint name into our streamlit frontend and use that to process new data!
+> Andrew! Does this scale well?
+
+Yes, it has great capabilities!
+For this learning project, I only deployed a single `ml.t2.medium` instance for monetary reasons.
+In production, I'd choose to enable auto-scaling.
+SageMaker would be able to add instances automatically when the load gets sufficiently high.
+
+Anyway, SageMaker will also eventually allow the us to paste our specific endpoint name into our streamlit frontend and use that to process new data!
 
 This costs me about $0.05/hour (or about $36/month if left running).
+See how little money we need to spend on a single instance!
+
+Here's a screenshot of the very first model I deployed!
+
+![first model](assets/images/11-model-deployed.png)
 
 ## Phase 4: Testing the Model
 
@@ -572,7 +617,9 @@ Frontend time!
 
 # Episode 3: The Read Pipeline (Inference)
 
-*"Building a Streamlit UI that talks to AWS and actually looks good"*
+When building the frontend, I focused on the idea of functionality and beginner-friendliness.
+I chose Streamlit in order to continue practicing my Python skills and to become more familiar with the built-in widgets and styling features.
+My belief (subject to change) is that web dev is only dead if you don't have a good reason to host your website!
 
 ## Overview
 
