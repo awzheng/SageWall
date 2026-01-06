@@ -398,6 +398,10 @@ Plus, using layers allows for faster deployments and being able to edit/update o
 
 Thus by attaching as a layer, the deployment package stays lightweight at just several KB, speeding up the process.
 
+To end this section off, here's the screenshot of the Cloudlog showing the Lambda function successfully processing the file!
+
+![victory lap](assets/images/05-victory-lap--1024-mb.png)
+
 ## Phase 3: SageMaker Training
 
 With the data now clean, it's time to train the XGBoost model.
