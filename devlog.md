@@ -119,7 +119,7 @@ We're good now! Let's move onto setting up the Write Pipeline!
 Please drop by `assets/images` if you wanna see all the screenshots of me setting up the write pipeline in the AWS console!
 If you happen to visit before I censor the screenshots, please don't dox me!
 
-## Phase 1: AWS Infrastructure Setup
+## AWS Infrastructure Setup
 
 Fortunately, I had a decent Idea of what I was doing since I already had a simple architecture laid out in mind before setting anything up:
 
@@ -166,7 +166,7 @@ By the way, if something breaks, I can always re-run Lambda on the raw data with
 
 Please visit `assets/images` to see screenshots of me setting up the S3 buckets in the AWS console.
 
-## Phase 2: Lambda ETL Function
+## AWS Lambda (lambda_function.py)
 
 This is our hero of the Write Pipeline.
 The Lambda function automatically triggers when we upload raw data to `sagewall-raw-zheng-1b`, which is considered an S3 PUT Event.
@@ -436,7 +436,7 @@ When I tried again with 1024 MB, it used just over 512 MB:
 
 Thank goodness we expanded the memory limit!
 
-## Phase 3: Training in SageMaker
+## AWS SageMaker
 
 With the data now clean, it's time to train XGBoost using a SageMaker Jupyter Notebook!
 
@@ -618,52 +618,43 @@ Frontend time!
 # Episode 3: The Read Pipeline (Inference)
 
 When building the frontend, I focused on the idea of functionality and beginner-friendliness.
-I chose Streamlit in order to continue practicing my Python skills and to become more familiar with the built-in widgets and styling features.
 My belief (subject to change) is that web dev is only dead if you don't have a good reason to host your website!
+
+![read pipeline](assets/diagrams/sagewall-read.png)
 
 ## Overview
 
-The Read Pipeline is the **user-facing layer** — where security analysts paste packet data and get instant threat predictions.
+The Read Pipeline focuses on the user experience, where we, the security analysts, paste our packet data and get instant threat predictions.
 
-**What we'll cover:**
-- Building the Streamlit frontend
+Based on the system design diagram, here's a breakdown of our duties:
+- Building and polishing the Streamlit frontend
 - Connecting to the SageMaker endpoint via boto3
 - Handling predictions and displaying results
-- Dark mode, CSS styling, and UX polish
+- Adding user-friendly guides for beginners
 
----
+So, let's get started!
 
-## Phase 1: Streamlit Architecture
+## app.py
 
-### Why Streamlit?
+`app.py` is the main file that includes the streamlit frontend.
+It handles user input and SageMaker communication.
 
-I chose Streamlit over Flask/React because:
-- **Zero frontend code** — no HTML/CSS/JavaScript required
-- **Fast prototyping** — entire app in one Python file
-- **Built-in widgets** — sliders, text areas, buttons out-of-the-box
-- **Hot reload** — changes appear instantly
+> Andrew! Why did you choose Streamlit?
 
-Perfect for an ML demo that needs to ship quickly.
+I chose Streamlit in order to continue practicing my Python skills and to become more familiar with the built-in widgets and styling features.
 
-### App Structure
-
-The app is organized into 7 sections:
-
-1. **Imports & Setup** (lines 37-39)
-2. **Theme & Styling** (lines 100-274)
-3. **Configuration Inputs** (lines 294-320)
-4. **Packet Data Entry** (lines 322-333)
-5. **Core Logic** (lines 344-442)
-6. **Stats Cards** (lines 449-466)
-7. **Educational Expanders** (lines 471-477)
-
----
-
-## Phase 2: The Core Function
+My SYDE friend told me that it's not about having the flashiest UI, but instead having cool ideas and shipping them fast.
+Yes I need to quote my SYDE friend here or else it sounds like AI slop.
+Sometimes you can just hear those dreaded em dashes.
 
 ### `invoke_sagemaker_endpoint()`
 
-This is the **bridge between Streamlit and AWS** — it sends packet data to the SageMaker endpoint and returns the threat score.
+I'm not gonna bore you by starting out with the UI.
+Everyone and their grandma knows how to navigate a website!
+
+So let's jump straight to the goods.
+`invoke_sagemaker_endpoint()` is the bridge between Streamlit and AWS
+It sends packet data to the SageMaker endpoint and returns the threat score.
 
 ```python
 # app.py - invoke_sagemaker_endpoint()
