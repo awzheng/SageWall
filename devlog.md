@@ -622,8 +622,6 @@ My belief (subject to change) is that web dev is only dead if you don't have a g
 
 ![read pipeline](assets/diagrams/sagewall-read.png)
 
-## Overview
-
 The Read Pipeline focuses on the user experience, where we, the security analysts, paste our packet data and get instant threat predictions.
 
 Based on the system design diagram, here's a breakdown of our duties:
@@ -639,6 +637,10 @@ So, let's get started!
 `app.py` is the main file that includes the streamlit frontend.
 It handles user input and SageMaker communication.
 
+Here's what the finished streamlit frontend looks like:
+
+![streamlit frontend](assets/images/14-streamlit.png)
+
 > Andrew! Why did you choose Streamlit?
 
 I chose Streamlit in order to continue practicing my Python skills and to become more familiar with the built-in widgets and styling features.
@@ -646,15 +648,17 @@ I chose Streamlit in order to continue practicing my Python skills and to become
 My SYDE friend told me that it's not about having the flashiest UI, but instead having cool ideas and shipping them fast.
 Yes I need to quote my SYDE friend here or else it sounds like AI slop.
 Sometimes you can just hear those dreaded em dashes.
+ 
+### invoke_sagemaker_endpoint()
 
-### `invoke_sagemaker_endpoint()`
-
-I'm not gonna bore you by starting out with the UI.
+Just a disclaimer: sections 1-6 in `app.py` are just about styling and setting up the page.
+That's not what SageWall is all about!
 Everyone and their grandma knows how to navigate a website!
 
 So let's jump straight to the goods.
 `invoke_sagemaker_endpoint()` is the bridge between Streamlit and AWS
 It sends packet data to the SageMaker endpoint and returns the threat score.
+It's in `SECTION 7` of `app.py`.
 
 ```python
 # app.py - invoke_sagemaker_endpoint()
@@ -690,45 +694,60 @@ def invoke_sagemaker_endpoint(endpoint_name: str, payload: str, region: str) -> 
     return float(result.strip())
 ```
 
-### Key Design Decisions
+The function's workflow is included in the comments. Here it is again for your convenience:
+Workflow:
+1. Import boto3 (AWS tool).
+2. Connect to SageMaker in the specific region.
+3. Send the 'payload' (packet data).
+4. Receive the score (0.0 to 1.0).
 
-#### 1. **Why import boto3 inside the function?**
+> Andrew! What's boto3? Why did you import it inside the function instead of at the top of the file?
 
-SSL certificate issue on macOS! If I import at the top:
+boto3 is the AWS SDK (software development kit) for Python. 
+It's a library that allows you to interact with AWS services.
+
+If I import at the top, I'd run into an SSL certificate error:
+
 ```python
 import boto3  # ← Crashes on some Macs
 ```
 
-It tries to load AWS certs before Streamlit initializes, causing:
+This is because it tries to load AWS certificates before Streamlit initializes, causing:
+
 ```
 SSLError: [SSL: CERTIFICATE_VERIFY_FAILED]
 ```
 
-Importing inside the function delays cert loading until the first API call.
+Thus, importing inside the function delays cert loading until the first API call.
 
-#### 2. **Why use `sagemaker-runtime` instead of `sagemaker`?**
+> Andrew! What's a client connection in boto3? Why did you use `sagemaker-runtime` instead of `sagemaker`?
 
-`sagemaker` is for **managing** endpoints (create, delete, update).  
-`sagemaker-runtime` is for **invoking** endpoints (predictions).
+It's just appropriate convention.
+The name of the client connection is `runtime` because it's for invoking endpoints.
+In this case, SageWall is meant to make predictions based on new network logs (if it's an attack or not).
+Let's look at the use cases for the following naming styles:
 
-Since the frontend only needs predictions, `sagemaker-runtime` is more lightweight.
+- `sagemaker` is for managing endpoints (create, delete, update).
+- `sagemaker-runtime` is for invoking endpoints (predictions).
 
-#### 3. **Why `ContentType='text/csv'`?**
+Since the frontend only needs predictions, `sagemaker-runtime` is more lightweight and appropriate.
 
-SageMaker endpoints have different deserializers:
+> Andrew! Why is the response in `text/csv`?
+
+SageMaker endpoints have different deserializers.
+A deserializer converts the response from a structured format (the kind that XGBoost loves) into a Python object for SageWall to use.
+
+Here are some of the deserializers we could have used:
 - `text/csv` → parses CSV strings
 - `application/json` → parses JSON objects
 - `application/x-npy` → parses NumPy arrays
 
-Our Lambda outputs CSV, so we use `text/csv` for consistency.
+Our Lambda outputs CSV, so we use `text/csv`.
+Thus, `invoke_sagemaker_endpoint()` returns a score from 0 (not an attack) to 1 (definitely an attack).
 
----
+### if scan_button:
 
-## Phase 3: Prediction Flow
-
-### Button Click Handler
-
-When the user clicks **"🔍 Scan Packet"**, this code runs:
+When the user clicks **"🔍 Scan Packet"**, in our frontend, this code runs:
 
 ```python
 if scan_button:
@@ -789,21 +808,20 @@ if scan_button:
                 st.error(f"❌ Error: {error_msg}")
 ```
 
-### UX Polish
+Here's what it looks like in action:
 
-1. **Input validation** — catch empty data and placeholder endpoint names
-2. **Loading spinner** — show "Analyzing..." during API call
-3. **Color-coded results** — red for threats, green for safe
-4. **Confidence inversion** — if threat is 0.05, safety is 0.95 (95%)
-5. **Error categorization** — different messages for endpoint errors vs. network errors
+![streamlit success](assets/images/15-streamlit-success.png)
 
----
+The `scan_button` is what triggers the `invoke_sagemaker_endpoint()` function.
+As long as we upload a valid endpoint name, it will run.
 
-## Phase 4: SNS Alerting (Optional)
+Most of the lines are just formatting the score from `invoke_sagemaker_endpoint()` as a "threat deteted" or "appears legitimate" box.
+And that's the logic behind SageWall's frontend!
 
-### `send_alert()` Integration
+## alerts.py
 
-For high-confidence threats (>90%), I trigger AWS SNS to send email/SMS alerts:
+For high-confidence threats (>90%), I trigger AWS SNS to send email. 
+This is the final piece of the puzzle.
 
 ```python
 # utils/alerts.py - send_alert()
@@ -865,146 +883,44 @@ def send_alert(score: float, topic_arn: str) -> bool:
         return False
 ```
 
-### Why 0.90 threshold?
+Yes, it's a very simple function, pretty much just an if statement and a sns to the AWS SNS client containing the score from `invoke_sagemaker_endpoint()`. 
 
-**Alert fatigue prevention** — if we alert on every 0.51 prediction, users will ignore notifications. 0.90 filters for high-confidence threats only.
+> Andrew! Why email and not SMS?
 
----
+Email is completely free to send/receive, but SMS costs a few cents per message and it also might cost money to receive too.
+Yes I know I've already spent quite a few dollars on SageWall but we still need to save money in case I need to run SageWall many more times!
 
-## Phase 5: Dark Mode & Styling
+And that's SageWall for you!
 
-### The CSS Injection
+# Conclusion
 
-Streamlit's default theme is... basic. I injected custom CSS for:
-- **Dark mode toggle**
-- **Gradient text** for the header
-- **Glassmorphism cards** for results
-- **Theme-aware inputs**
-
-### Key Techniques
-
-#### 1. **CSS Variables Based on Toggle**
-
-```python
-dark_mode = st.toggle("Dark Mode", value=False)
-theme = 'dark' if dark_mode else 'light'
-c = COLORS[theme]  # Dict with colors for each theme
-
-st.markdown(f"""
-<style>
-    .stApp {{
-        background-color: {c['bg']};
-        color: {c['text']};
-    }}
-</style>
-""", unsafe_allow_html=True)
-```
-
-#### 2. **Gradient Header**
-
-```css
-.header-title {
-    background: linear-gradient(135deg, #4ECDC4 0%, #5BC0EB 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
-```
-
-This creates the **jade-to-cyan gradient** on "SageWall".
-
----
-
-## Common Interview Questions (Episode 3)
-
-### Q1: *"Why Streamlit instead of a React frontend?"*
-
-**A:** For a PoC, Streamlit is unbeatable for speed:
-- Entire app in **one Python file**
-- No npm, webpack, or build step
-- State management handled automatically
-- Perfect for internal tools and ML demos
-
-For production with complex UX, I'd use Next.js + FastAPI.
-
----
-
-### Q2: *"How does the app authenticate with AWS?"*
-
-**A:** Two options:
-
-1. **AWS credentials file** (`~/.aws/credentials`):
-```
-[default]
-aws_access_key_id = YOUR_KEY
-aws_secret_access_key = YOUR_SECRET
-```
-
-2. **Environment variables**:
-```bash
-export AWS_ACCESS_KEY_ID=...
-export AWS_SECRET_ACCESS_KEY=...
-```
-
-boto3 automatically reads these. For production, I'd use **IAM roles** instead of hardcoded keys.
-
----
-
-### Q3: *"What if the endpoint is deleted?"*
-
-**A:** The app catches the exception:
-
-```python
-except Exception as e:
-    if 'endpoint' in error_msg.lower():
-        st.error("❌ Error: Endpoint not found.")
-```
-
-The user sees a friendly error instead of a crash. In production, I'd add **endpoint health checks** on app startup.
-
----
-
-### Q4: *"How would you deploy this to production?"*
-
-**A:** Three options:
-
-1. **AWS App Runner** — containerized Streamlit app (easiest)
-2. **EC2 + Docker** — more control over scaling
-3. **Streamlit Cloud** — free tier, but public URL
-
-I'd choose **App Runner** for automatic HTTPS, autoscaling, and CloudWatch integration.
-
----
-
-### Q5: *"Why not cache the boto3 client?"*
-
-**A:** Great question! I could use `@st.cache_resource`:
-
-```python
-@st.cache_resource
-def get_sagemaker_client(region):
-    import boto3
-    return boto3.client('sagemaker-runtime', region_name=region)
-```
-
-This creates the client once per session instead of per request. I'll add this in v2!
-
----
-
-## Final Thoughts
-
+Thanks for sticking around until the very end!
 SageWall was my first AWS + ML project, and it taught me:
 - Event-driven architecture with Lambda + S3
 - XGBoost hyperparameter tuning
 - Production ML deployment with SageMaker
-- Building UIs that don't look like 1995
+- AWS Architecture system design on eraser.io
 
-The code isn't perfect (no tests, hardcoded bucket names, manual endpoint deletion), but it **works** and demonstrates real-world cloud ML patterns.
+The 1b version of SageWall isn't perfect (no tests, hardcoded bucket names, manual endpoint deletion), but it works and demonstrates real-world cloud ML patterns.
+
+> Andrew! How would you deploy SageWall to production? How would you scale up?
+
+There are quite a few things that I can do in the future.
+
+- AWS App Runner would teach me to turn SageWall into a containerized Streamlit app, perfect for my Computer Engineering major.
+- EC2 + Docker would give me more control over scaling, but it's a bit complex for my very first ML project. (Kinda outside the scope/purpose)
+- Streamlit Cloud is a free tier public URL. It's okay for now but I don't plan on becoming dependent on it.
+
+Overall I'd choose AWS App Runner. It has the main benefit of being on the AWS console and also includes cool features like automatic HTTPS, autoscaling, and CloudWatch integration.
 
 Next steps for production:
 - [ ] CI/CD pipeline with GitHub Actions
 - [ ] Automated testing (pytest + moto for AWS mocking)
 - [ ] CloudFormation/Terraform for infrastructure as code
-- [ ] Model versioning and A/B testing
+- [ ] Model versioning and 2A/2B testing (a few co-ops later...)
 - [ ] Real-time monitoring dashboard
 
-Thanks for reading! Hit me up if you have questions 🚀
+Let me know if you have any questions or suggestions for improvement!
+My DMs on my socials are always open!
+
+Instagram, Discord @awzheng
