@@ -735,15 +735,16 @@ Since the frontend only needs predictions, `sagemaker-runtime` is more lightweig
 > Andrew! Why is the response in `text/csv`?
 
 SageMaker endpoints have different deserializers.
-A deserializer converts the response from a structured format (the kind that XGBoost loves) into a Python object for SageWall to use.
+A deserializer converts the response from a wire format (i.e. binary, the kind that our SageMaker XGBoost container loves) into a Python object for SageWall to use.
 
 Here are some of the deserializers we could have used:
 - `text/csv` → parses CSV strings
 - `application/json` → parses JSON objects
 - `application/x-npy` → parses NumPy arrays
 
-Our Lambda outputs CSV, so we use `text/csv`.
-Thus, `invoke_sagemaker_endpoint()` returns a score from 0 (not an attack) to 1 (definitely an attack).
+SageMaker's XGBoost container accepts csv input.
+Plus, `invoke_sagemaker_endpoint()` returns a score from 0 (not an attack) to 1 (definitely an attack).
+This score is also in CSV format, so we use `text/csv`.
 
 ### if scan_button:
 
@@ -815,7 +816,7 @@ Here's what it looks like in action:
 The `scan_button` is what triggers the `invoke_sagemaker_endpoint()` function.
 As long as we upload a valid endpoint name, it will run.
 
-Most of the lines are just formatting the score from `invoke_sagemaker_endpoint()` as a "threat deteted" or "appears legitimate" box.
+Most of the lines are just formatting the score from `invoke_sagemaker_endpoint()` as a "threat detected" or "appears legitimate" box.
 And that's the logic behind SageWall's frontend!
 
 ## alerts.py
