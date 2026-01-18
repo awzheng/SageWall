@@ -9,7 +9,7 @@
 
 ## ‼️ Read the DevLog ‼️
 
-I documented the entire development process, technical decisions, and reasoning behind every design choice in the devlog. It covers the Write Path (setting up SageMaker), Read Path (including the Streamlit frontend), and all the lessons learned along the way. No AI slop, fully authentic. I promise.
+I documented the entire development process, technical decisions, and reasoning behind every design choice in the devlog. It covers the Write Path (setting up SageMaker), Read Path (including the Streamlit frontend), and all the lessons learned along the way. Fully authentic, no AI slop. I promise.
 
 Check it out here: [devlog.md](devlog.md)
 
