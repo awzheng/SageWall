@@ -58,7 +58,7 @@ Training is a batch, write-heavy process that runs once.
 Inference, on the other hand, is a low-latency, read-only process that needs to be always available for SageWall to make real-time predictions with new data. 
 - For testing purposes, I split the NSL-KDD dataset txt file into 80/20 train/val splits.
     - (I didn't have the resources to get hacked just to test my first AWS app 💔)
-- By seperating them, I can scale inference independently. 
+- By separating them, I can scale inference independently. 
     - If I get 1000 new requests/second, I don't need to retrain the model.
 
 ### Project Structure
