@@ -656,7 +656,7 @@ That's not what SageWall is all about!
 Everyone and their grandma knows how to navigate a website!
 
 So let's jump straight to the goods.
-`invoke_sagemaker_endpoint()` is the bridge between Streamlit and AWS
+`invoke_sagemaker_endpoint()` is the bridge between Streamlit and AWS.
 It sends packet data to the SageMaker endpoint and returns the threat score.
 It's in `SECTION 7` of `app.py`.
 
