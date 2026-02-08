@@ -4,11 +4,11 @@
 
 Traditional firewalls use static rules, so they only catch attacks they already know about. SageWall uses machine learning to learn what "normal" network traffic looks like, so it can detect *new* attacks based on statistical anomalies.
 
-## System Architecture
+🟩 For in-depth details on the design process, please visit the [devlog](devlog.md). 🟩
 
 ![SageWall Simplified Pipeline](assets/diagrams/sagewall-simplified.png)
 
-Network logs flow through S3 (raw and processed), Lambda ETL, and SageMaker for real-time inference. IAM and CloudWatch provide access control and observability. Training and inference pipelines are decoupled so scaling inference does not require retraining.
+Uploaded network logs flow through S3 (raw and processed), Lambda ETL, and SageMaker for real-time inference. IAM and CloudWatch provide access control and observability. Training and inference pipelines are decoupled so scaling inference does not require retraining.
 
 ## Key Metrics
 
@@ -17,7 +17,6 @@ Network logs flow through S3 (raw and processed), Lambda ETL, and SageMaker for 
 | **Performance** | Validation accuracy | 99.9%* |
 | **Performance** | Inference latency | <100ms per packet |
 | **Performance** | Training time | ~3-5 minutes |
-| **Data** | Raw features | 41 (38 numeric + 3 categorical) |
 | **Data** | Encoded features | 122 (after one-hot encoding) |
 | **Data** | Training records | 125,973 (NSL-KDD) |
 | **Data** | Train/val split | 80/20 |
@@ -29,10 +28,17 @@ Network logs flow through S3 (raw and processed), Lambda ETL, and SageMaker for 
 ## Key Performance Indicators
 
 - **Zero-day coverage**: catches attack patterns never explicitly seen before
-- **Automated defense**: generalizes from 125K+ labeled samples instead of manual rule-writing
+- **Automated defense**: generalizes from 125K+ labeled samples
 - **Real-time response**: sub-100ms inference flags threats as they happen
 - **Binary classification**: collapses 5 NSL-KDD classes into attack/normal, matching the real-world question "is this packet malicious?"
 - **XGBoost over neural nets**: trains in minutes, more interpretable, lower latency. Neural nets are overkill for tabular data
 - **Serverless ETL**: event-driven Lambda trigger eliminates manual preprocessing
-- **0.90 alert threshold**: SNS alerts only fire above 90% confidence, reducing false-positive noise
+- **Customizable alert threshold**: SNS alerts only fire above a user-specified confidence (default 90%), reducing false-positive noise
 
+### Training (Write) Pipeline
+
+![SageWall Training (Write) Pipeline](assets/diagrams/sagewall-write.png)
+
+### Inference (Read) Pipeline
+
+![SageWall Inference (Read) Pipeline](assets/diagrams/sagewall-read.png)
